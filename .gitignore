@@ -1,0 +1,48 @@
+# Node
+
+node_modules/
+
+# Build
+
+dist/
+build/
+
+# Python
+
+venv/
+**pycache**/
+*.pyc
+
+# IDE
+
+.vscode/
+.idea/
+
+# Logs
+
+*.log
+
+# Environment
+
+.env
+
+# Dataset
+
+datasets/
+Complete_Skin_Dataset/
+HAM10000_images_part_1/
+HAM10000_images_part_2/
+
+# ML Models
+
+*.h5
+*.keras
+*.pt
+*.pth
+*.pkl
+
+# CSV files
+
+*.csv
+target/
+*.class
