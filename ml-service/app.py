@@ -363,32 +363,51 @@ def home():
 def health():
     return jsonify({'status': 'ok', 'service': 'Adaptive DS ML Engine'}), 200
 
-
 @app.route('/analyze', methods=['POST'])
 def analyze():
+
+    print("\n========== ANALYZE CALLED ==========")
+
     try:
+        print("Request received")
+
         if 'file' not in request.files:
+            print("ERROR: No file found in request")
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
+
+        print(f"Filename: {file.filename}")
+
         if file.filename == '':
+            print("ERROR: Empty filename")
             return jsonify({'error': 'Empty filename'}), 400
 
         if not file.filename.lower().endswith('.csv'):
+            print("ERROR: Invalid file type")
             return jsonify({'error': 'Only CSV files are supported'}), 400
 
-        # Read CSV
         content = file.read()
+
+        print(f"File Size: {len(content)} bytes")
+
         df = pd.read_csv(io.BytesIO(content))
 
+        print(f"Rows: {len(df)}")
+        print(f"Columns: {len(df.columns)}")
+        print(f"Column Names: {df.columns.tolist()}")
+
         if df.empty:
+            print("ERROR: CSV file is empty")
             return jsonify({'error': 'CSV file is empty'}), 400
 
         if len(df.columns) < 2:
+            print("ERROR: Less than 2 columns")
             return jsonify({'error': 'CSV must have at least 2 columns'}), 400
 
         # Dataset summary
         missing_values = int(df.isnull().sum().sum())
+
         dataset_summary = {
             'rows': int(len(df)),
             'columns': int(len(df.columns)),
@@ -398,55 +417,122 @@ def analyze():
             'numericColumns': df.select_dtypes(include=[np.number]).columns.tolist(),
             'categoricalColumns': df.select_dtypes(include=['object']).columns.tolist(),
             'sampleData': df.head(5).fillna('').to_dict(orient='records'),
-            'statistics': json.loads(df.describe(include='all').fillna('').to_json()),
+            'statistics': json.loads(df.describe(include='all').fillna('').to_json())
         }
 
-        # Detect problem type
+        print("Detecting problem type...")
+
         problem_type, target_col = detect_problem_type(df)
 
-        # Preprocess
-        X, y, feature_names, encoders = preprocess(df.copy(), target_col, problem_type)
+        print(f"Problem Type: {problem_type}")
+        print(f"Target Column: {target_col}")
+
+        print("Running preprocessing...")
+
+        X, y, feature_names, encoders = preprocess(
+            df.copy(),
+            target_col,
+            problem_type
+        )
+
+        print("Preprocessing completed")
 
         result = {}
 
         if problem_type == 'classification':
+
+            print("Running Classification Model")
+
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42, stratify=y if len(np.unique(y)) > 1 else None
+                X,
+                y,
+                test_size=0.2,
+                random_state=42,
+                stratify=y if len(np.unique(y)) > 1 else None
             )
-            result = run_classification(X_train, X_test, y_train, y_test, feature_names)
+
+            result = run_classification(
+                X_train,
+                X_test,
+                y_train,
+                y_test,
+                feature_names
+            )
 
         elif problem_type == 'regression':
+
+            print("Running Regression Model")
+
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+                X,
+                y,
+                test_size=0.2,
+                random_state=42
             )
-            result = run_regression(X_train, X_test, y_train, y_test, feature_names)
+
+            result = run_regression(
+                X_train,
+                X_test,
+                y_train,
+                y_test,
+                feature_names
+            )
 
         elif problem_type == 'clustering':
+
+            print("Running Clustering Model")
+
             result = run_clustering(X, feature_names)
 
         elif problem_type == 'time-series':
+
+            print("Running Time Series Analysis")
+
             result = run_timeseries(df, target_col)
 
-        # Generate insights
-        insights = generate_insights(problem_type, result, dataset_summary, target_col)
+        print("Generating insights...")
 
-        # Build distribution chart data for first numeric col
+        insights = generate_insights(
+            problem_type,
+            result,
+            dataset_summary,
+            target_col
+        )
+
         distribution_chart = []
+
         num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
         if num_cols:
             col_data = df[num_cols[0]].dropna()
-            hist_vals, bin_edges = np.histogram(col_data, bins=15)
+
+            hist_vals, bin_edges = np.histogram(
+                col_data,
+                bins=15
+            )
+
             distribution_chart = [
-                {'bin': round(float(bin_edges[i]), 2), 'count': int(hist_vals[i])}
+                {
+                    'bin': round(float(bin_edges[i]), 2),
+                    'count': int(hist_vals[i])
+                }
                 for i in range(len(hist_vals))
             ]
 
-        # Class distribution for classification
         class_distribution = []
-        if problem_type == 'classification' and target_col and target_col in df.columns:
+
+        if (
+            problem_type == 'classification'
+            and target_col
+            and target_col in df.columns
+        ):
             vc = df[target_col].value_counts()
+
             class_distribution = [
-                {'label': str(k), 'count': int(v)}
+                {
+                    'label': str(k),
+                    'count': int(v)
+                }
                 for k, v in vc.items()
             ]
 
@@ -463,16 +549,22 @@ def analyze():
             'trendData': result.get('trendData', []),
             'distributionChart': distribution_chart,
             'classDistribution': class_distribution,
-            'insights': insights,
+            'insights': insights
         }
+
+        print("SUCCESS: Analysis Completed")
+        print("===================================")
 
         return jsonify(response), 200
 
     except Exception as e:
+
+        print("\n========== ERROR ==========")
+        print(str(e))
         traceback.print_exc()
-        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+        print("===========================\n")
 
-
-if __name__ == '__main__':
-    print("🚀 Adaptive DS ML Engine starting on http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+        return jsonify({
+            'error': str(e),
+            'trace': traceback.format_exc()
+        }), 500
