@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
+# pyrefly: ignore [missing-import]
 import matplotlib.pyplot as plt
 
 from flask import Flask, request, jsonify
@@ -349,6 +350,14 @@ def generate_insights(problem_type, result, dataset_summary, target_col):
 # ─────────────────────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────────────────────
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "success",
+        "message": "Adaptive DS ML Engine Running",
+        "health": "/health",
+        "analyze": "/analyze"
+    })
 
 @app.route('/health', methods=['GET'])
 def health():
