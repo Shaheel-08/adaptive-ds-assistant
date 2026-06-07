@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://adaptive-ds-backend.onrender.com/api',
   timeout: 120000, // 2 minutes — ML training can take time
 });
 
